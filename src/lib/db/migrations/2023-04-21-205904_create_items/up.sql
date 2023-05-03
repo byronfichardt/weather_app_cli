@@ -1,0 +1,9 @@
+CREATE TABLE items (
+  id SERIAL PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  price int NOT NULL,
+  name VARCHAR NOT NULL,
+  brand VARCHAR NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+)
