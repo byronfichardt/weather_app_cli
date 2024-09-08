@@ -33,6 +33,13 @@ pub struct NoteStruct {
     published: bool,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct NotePostRequest {
+    title: String,
+    body: String,
+    published: bool,
+}
+
 pub async fn get_notes( 
     Extension(pool): Extension<Pool<ConnectionManager<MysqlConnection>>>,
 ) -> Result<Json<Vec<NoteStruct>>, StatusCode> {
@@ -41,7 +48,6 @@ pub async fn get_notes(
     let conn = &mut pool.get().unwrap();
 
     let note_results = notes
-        .filter(published.eq(true))
         .limit(5)
         .select(Note::as_select())
         .load(conn)
@@ -63,23 +69,35 @@ pub async fn get_notes(
 
 pub async fn create_note( 
     Extension(pool): Extension<Pool<ConnectionManager<MysqlConnection>>>,
-) -> Result<(), StatusCode> {
+    Json(payload): Json<NotePostRequest>,
+) -> Result<Json<NoteStruct>, StatusCode> {
     use crate::db::schema::notes::dsl::*;
 
-    let conn = &mut pool.get().unwrap();
+    let conn = &mut pool.get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let new_note = Note {
-        id: 1234,
-        title: "this is a note".to_string(),
-        body: "this is a note body".to_string(),
-        published: true
+    let new_note = NewNote {
+        title: payload.title.clone(),
+        body: payload.body,
+        published: payload.published
     };
 
-    let rows_inserted = diesel::insert_into(notes)
+    let inserted_rows = diesel::insert_into(notes)
         .values(&new_note)
-        .execute(conn);
+        .execute(conn)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
 
-    assert_eq!(Ok(1), rows_inserted);
+    let result: Note = notes
+        .filter(title.eq(&payload.title))
+        .order(id.desc())  // Get the latest inserted note
+        .first(conn)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(())
+    let inserted_note = NoteStruct {
+        id: result.id,
+        title: result.title,
+        body: result.body,
+        published: result.published
+    };
+
+    Ok(Json(inserted_note))
 }
