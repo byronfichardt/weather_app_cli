@@ -1,6 +1,5 @@
-use note_app_lib::run;
+use weather_app_cli_lib::run;
 
-#[tokio::main]
-async fn main() {
-    run().await;
+fn main() {
+    let _ = run();
 }
