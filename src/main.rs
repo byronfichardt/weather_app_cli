@@ -97,30 +97,40 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
 
     let appid = env::var("API_KEY").expect("API_KEY not set in .env file");
+    io::stdout().flush().expect("Failed to flush stdout");
 
+    println!("What would you like to see:");
+    println!("1. Hourly forecast (4 days)");
+    println!("2. Current weather");
+
+    let mut input: String = String::new();
+
+    io::stdin().read_line(&mut input).expect("failed to read line");
+
+    let choice: i32 = input.trim().parse()?;
+
+    if choice == 1 {
+        println!("you requested a forecast");
+    } else {
+        current(appid)?;
+    }
+
+    Ok(())
+}
+
+fn current(appid: String) -> Result<(), Box<dyn Error>> {
     print!("please enter your country:");
     io::stdout().flush().expect("Failed to flush stdout");
-
     let mut country = String::new();
-
     io::stdin().read_line(&mut country).expect("failed to read line");
-
     let country = country.trim();
-
     print!("please enter your city:");
     io::stdout().flush().expect("Failed to flush stdout");
-
     let mut city = String::new();
-
     io::stdin().read_line(&mut city).expect("failed to read line");
-
-    // get weather for the city and country
-
     let geo_url = format!("http://api.openweathermap.org/geo/1.0/direct?q={},{}&limit=1&appid={}", city, country, appid);
-
-
     let geo_response = reqwest::blocking::get(&geo_url);
-    match geo_response {
+    Ok(match geo_response {
         Ok(response) => {
             let status = response.status();
             if !status.is_success() {
@@ -132,19 +142,19 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("No location found for the given city and country");
                 return Err(Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "No locations found")));
             }
-
+    
             // Get the first location
             let location: &Location = &locations[0];
-
+    
             let lon = location.lon;
             let lat = location.lat;
-
+            print!("{}{}", lon, lat);
             // Get weather data
-            let weather_url = format!("https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&units=metric&appid={}", lon, lat, appid);
-
+            let weather_url = format!("https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&units=metric&appid={}", lat, lon, appid);
+    
             // Make the weather request and print raw response for debugging
             let weather_response = reqwest::blocking::get(&weather_url);
-            
+        
             match weather_response {
                 Ok(response) => {
                     let status = response.status();
@@ -182,7 +192,5 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             eprintln!("Failed to fetch geo location data: {}", e);
             return Err(Box::new(e));
         }
+    })
     }
-
-    Ok(())
-}
