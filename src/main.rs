@@ -97,6 +97,19 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
 
     let appid = env::var("API_KEY").expect("API_KEY not set in .env file");
+
+    print!("please enter your country:");
+    io::stdout().flush().expect("Failed to flush stdout");
+    let mut country = String::new();
+    io::stdin().read_line(&mut country).expect("failed to read line");
+    let country = country.trim();
+
+    print!("please enter your city:");
+    io::stdout().flush().expect("Failed to flush stdout");
+    let mut city = String::new();
+    io::stdin().read_line(&mut city).expect("failed to read line");
+    let city = city.trim();
+
     io::stdout().flush().expect("Failed to flush stdout");
 
     println!("What would you like to see:");
@@ -110,24 +123,23 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let choice: i32 = input.trim().parse()?;
 
     if choice == 1 {
-        println!("you requested a forecast");
+        forecast(appid.clone(), country.to_string().clone(), city.to_string().clone())?;
+    } else if choice == 2 {
+        current(appid.clone(), country.to_string().clone(), city.to_string().clone())?;
     } else {
-        current(appid)?;
+        println!("Invalid choice");
     }
 
     Ok(())
 }
 
-fn current(appid: String) -> Result<(), Box<dyn Error>> {
-    print!("please enter your country:");
-    io::stdout().flush().expect("Failed to flush stdout");
-    let mut country = String::new();
-    io::stdin().read_line(&mut country).expect("failed to read line");
-    let country = country.trim();
-    print!("please enter your city:");
-    io::stdout().flush().expect("Failed to flush stdout");
-    let mut city = String::new();
-    io::stdin().read_line(&mut city).expect("failed to read line");
+#[allow(unused_variables)]
+fn forecast(appid: String, country: String, city: String) ->Result<(), Box<dyn Error>> {
+    println!("you requested a forecast");
+    Ok(())
+}
+
+fn current(appid: String, country: String, city: String) -> Result<(), Box<dyn Error>> {
     let geo_url = format!("http://api.openweathermap.org/geo/1.0/direct?q={},{}&limit=1&appid={}", city, country, appid);
     let geo_response = reqwest::blocking::get(&geo_url);
     Ok(match geo_response {
@@ -148,7 +160,7 @@ fn current(appid: String) -> Result<(), Box<dyn Error>> {
     
             let lon = location.lon;
             let lat = location.lat;
-            print!("{}{}", lon, lat);
+
             // Get weather data
             let weather_url = format!("https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&units=metric&appid={}", lat, lon, appid);
     
