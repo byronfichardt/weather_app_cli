@@ -5,9 +5,9 @@ A command-line application to fetch current weather information and future forec
 ## Features
 
 - **Current Weather**: Retrieve real-time weather data for a specified city and country.
-- **Hourly Forecast**: *(Coming Soon)* Get a 4-day hourly weather forecast for a specified location.
+- **Forecast**: Get a 5-day 3 hourly weather forecast for a specified location.
 
-## Requirements
+## Requirements for compiling
 
 - **Rust**: Ensure you have Rust installed. You can install Rust from [here](https://www.rust-lang.org/tools/install).
 - **OpenWeatherMap API Key**: Sign up for a free API key at [OpenWeatherMap](https://home.openweathermap.org/users/sign_up).
@@ -33,17 +33,6 @@ A command-line application to fetch current weather information and future forec
 
    ```
    API_KEY=your_openweathermap_api_key
-   ```
-
-3. **Install Dependencies**
-
-   Ensure your `Cargo.toml` includes the necessary dependencies:
-
-   ```
-   [dependencies]
-   reqwest = { version = "0.11", features = ["blocking", "json"] }
-   serde = { version = "1.0", features = ["derive"] }
-   dotenv = "0.15"
    ```
 
 ## Compilation
@@ -72,11 +61,14 @@ A command-line application to fetch current weather information and future forec
    ./target/release/weather-cli-app
    ```
 
-## Usage
+## Usage (compiled)
 
 1. **Run the Application**
 
-   Execute the application using Cargo or the compiled binary.
+   Navigate to the directory where the binary is located and run the application.
+   ```
+   {location of the app}/weather_app_cli
+   ```
 
 2. **Enter Country and City**
 
@@ -91,7 +83,7 @@ A command-line application to fetch current weather information and future forec
    Select the type of weather information you want:
    ```
    What would you like to see:
-    1. Hourly forecast (4 days)
+    1. Hourly forecast (5 days 3 hourly)
     2. Current weather
    ```
 
@@ -110,6 +102,19 @@ Humidity: 60%
 Wind speed: 5 m/s 
 Cloud coverage: 75% 
 Rain: None
+```
+
+**Example Output for forecast Weather:**
+```
+date           | 2024-10-20   | 2024-10-20   | 2024-10-20   | 2024-10-20   | 2024-10-21   | 
+time           | 12:00:00     | 15:00:00     | 18:00:00     | 21:00:00     | 00:00:00     | 
+-------------------------------------------------------------------------------------------
+temp range     | 14°C-16°C    | 13°C-15°C    | 14°C-15°C    | 13°C-13°C    | 14°C-14°C    | 
+feels like     | 16°C         | 15°C         | 14°C         | 13°C         | 14°C         | 
+humidity       | 87%          | 86%          | 82%          | 83%          | 78%          | 
+wind speed     | 6 m/s        | 5 m/s        | 6 m/s        | 7 m/s        | 7 m/s        | 
+cloud coverage | 37%          | 58%          | 79%          | 100%         | 100%         | 
+rain 3h        | None         | None         | None         | None         | None         |
 ```
 
 ## API Integration
