@@ -227,96 +227,143 @@ fn get_long_and_lat(appid: String, country: String, city: String) -> Result<Posi
     }
 }
 
-#[allow(unused_variables)]
-fn forecast(appid: String, position: Position) ->Result<(), Box<dyn Error>> {
+fn pad_string_with_char(input: &str, width: usize, pad_char: char) -> String {
+    format!("{:1$}", input, width).replace(' ', &pad_char.to_string())
+}
 
-    // Get weather data
-    let forecast_url = format!("https://api.openweathermap.org/data/2.5/forecast?lat={}&lon={}&units=metric&appid={}", position.latitude, position.longitude, appid);
+fn forecast(appid: String, position: Position) -> Result<(), Box<dyn Error>> {
+    let forecast_data = fetch_forecast_data(appid, position)?;
+    let forecast_table = build_forecast_table(forecast_data);
+    display_forecast_table(forecast_table);
 
-    // Make the weather request and print raw response for debugging
-    let forecast_response = reqwest::blocking::get(&forecast_url);
+    Ok(())
+}
 
-    match forecast_response {
-        Ok(response) => {
-            let status = response.status();
-            if !status.is_success() {
-                eprintln!("Failed to get weather data: HTTP {}", status);
-                return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Weather request failed")));
-            }
-            match response.json::<Forecast>() {
-                Ok(forecast_data) =>  {
-                    for forecast in forecast_data.list {
-                        println!("Forecast Time: {}", forecast.dt_txt);
-                        println!("Temperature: {}°C to {}°C", forecast.main.temp_min, forecast.main.temp_max);
-                        println!("Feels like: {}°C", forecast.main.feels_like);
-                        println!("Humidity: {}%", forecast.main.humidity);
-                        println!("Wind speed: {} m/s", forecast.wind.speed);
-                        println!("Cloud coverage: {}%", forecast.clouds.all);
-                
-                        if let Some(rain_data) = &forecast.rain {
-                            println!("Rain in last hour: {}mm", rain_data.three_hour.unwrap_or(0.0));
-                        } else {
-                            println!("Rain: None");
-                        }
-                
-                        println!("---");
-                    };
-                    
-                    Ok(())
-                }
-                Err(e) => {
-                    eprintln!("Failed to fetch weather data: {}", e);
-                    return Err(Box::new(e));
-                }
-            }
-        },
-        Err(e) => {
-            eprintln!("Failed to fetch weather data: {}", e);
-            return Err(Box::new(e));
-        }
+fn fetch_forecast_data(appid: String, position: Position) -> Result<Forecast, Box<dyn Error>> {
+    let forecast_url = format!(
+        "https://api.openweathermap.org/data/2.5/forecast?lat={}&lon={}&cnt=5&units=metric&appid={}",
+        position.latitude, position.longitude, appid
+    );
+
+    let forecast_response = reqwest::blocking::get(&forecast_url)?;
+    if !forecast_response.status().is_success() {
+        eprintln!("Failed to get weather data: HTTP {}", forecast_response.status());
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Weather request failed",
+        )));
+    }
+
+    let forecast_data = forecast_response.json::<Forecast>()?;
+    Ok(forecast_data)
+}
+
+fn build_forecast_table(forecast_data: Forecast) -> Vec<String> {
+    let mut date_string = String::from("date           | ");
+    let mut time_string = String::from("time           | ");
+    let mut temp_string = String::from("temp range     | ");
+    let mut feels_like_string = String::from("feels like     | ");
+    let mut humidity_string = String::from("humidity       | ");
+    let mut wind_speed_string = String::from("wind speed     | ");
+    let mut cloud_coverage_string = String::from("cloud coverage | ");
+    let mut rain_string = String::from("rain 3h        | ");
+    
+    let divider = "-------------------------------------------------------------------------------------------";
+
+    for forecast in forecast_data.list {
+        let mut datetime_parts = forecast.dt_txt.split_whitespace();
+        let date = datetime_parts.next().unwrap_or("failed to extract date");
+        let time = datetime_parts.next().unwrap_or("failed to extract time");
+
+        // Accumulate the formatted data for each forecast point
+        date_string.push_str(&pad_string_with_char(date, 13, ' '));
+        date_string.push_str("| ");
+
+        time_string.push_str(&pad_string_with_char(time, 13, ' '));
+        time_string.push_str("| ");
+
+        let temp_max = forecast.main.temp_max as i64;
+        let temp_min = forecast.main.temp_min as i64;
+        temp_string.push_str(&pad_string_with_char(&format!("{}°C-{}°C", temp_min, temp_max), 13, ' '));
+        temp_string.push_str("| ");
+
+        let feels_like = forecast.main.feels_like as i64;
+        feels_like_string.push_str(&pad_string_with_char(&format!("{}°C", feels_like), 13, ' '));
+        feels_like_string.push_str("| ");
+
+        let humidity = forecast.main.humidity;
+        humidity_string.push_str(&pad_string_with_char(&format!("{}%", humidity), 13, ' '));
+        humidity_string.push_str("| ");
+
+        let wind_speed = forecast.wind.speed as i64;
+        wind_speed_string.push_str(&pad_string_with_char(&format!("{} m/s", wind_speed), 13, ' '));
+        wind_speed_string.push_str("| ");
+
+        let cloud_coverage = forecast.clouds.all;
+        cloud_coverage_string.push_str(&pad_string_with_char(&format!("{}%", cloud_coverage), 13, ' '));
+        cloud_coverage_string.push_str("| ");
+
+        let rain = if let Some(rain_data) = &forecast.rain {
+            format!("{} mm", rain_data.three_hour.unwrap_or(0.0) as i64)
+        } else {
+            "None".to_string()
+        };
+        rain_string.push_str(&pad_string_with_char(&format!("{}", rain), 13, ' '));
+        rain_string.push_str("| ");
+    }
+
+    vec![
+        date_string,
+        time_string,
+        divider.to_string(),
+        temp_string,
+        feels_like_string,
+        humidity_string,
+        wind_speed_string,
+        cloud_coverage_string,
+        rain_string,
+    ]
+}
+
+fn display_forecast_table(forecast_table: Vec<String>) {
+    for row in forecast_table {
+        println!("{}", row);
     }
 }
 
-fn current(appid: String, position: Position) -> Result<(), Box<dyn Error>> {
-
-    // Get weather data
+fn fetch_current_data(appid: String, position: Position) -> Result<WeatherData, Box<dyn Error>> {
     let weather_url = format!("https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&units=metric&appid={}", position.latitude, position.longitude, appid);
 
-    // Make the weather request and print raw response for debugging
-    let weather_response = reqwest::blocking::get(&weather_url);
-
-    match weather_response {
-        Ok(response) => {
-            let status = response.status();
-            if !status.is_success() {
-                eprintln!("Failed to get weather data: HTTP {}", status);
-                return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Weather request failed")));
-            }
-            match response.json::<WeatherData>() {
-                Ok(weather) =>  {
-                    println!("City: {}", weather.name);
-                    println!("Temperature: {}°C to {}°C", weather.main.temp_min, weather.main.temp_max);
-                    println!("Feels like: {}°C", weather.main.feels_like);
-                    println!("Humidity: {}%", weather.main.humidity);
-                    println!("Wind speed: {} m/s", weather.wind.speed);
-                    println!("Cloud coverage: {}%", weather.clouds.all);
-                    if let Some(rain_data) = &weather.rain {
-                        println!("Rain in last hour: {}mm", rain_data.one_hour.unwrap_or(0.0));
-                    } else {
-                        println!("Rain: None");
-                    }
-                    Ok(())
-                }
-                Err(e) => {
-                    eprintln!("Failed to fetch weather data: {}", e);
-                    return Err(Box::new(e));
-                }
-            }
-        },
-        Err(e) => {
-            eprintln!("Failed to fetch weather data: {}", e);
-            return Err(Box::new(e));
-        }
+    let forecast_response = reqwest::blocking::get(&weather_url)?;
+    if !forecast_response.status().is_success() {
+        eprintln!("Failed to get weather data: HTTP {}", forecast_response.status());
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Weather request failed",
+        )));
     }
-       
+
+    let weather = forecast_response.json::<WeatherData>()?;
+    Ok(weather)
+}
+
+fn current(appid: String, position: Position) -> Result<(), Box<dyn Error>> {
+    let weather_data = fetch_current_data(appid, position)?;
+    display_current_weather(weather_data);
+
+    Ok(())
+}
+
+fn display_current_weather(weather: WeatherData) {
+    println!("City: {}", weather.name);
+    println!("Temperature: {}°C to {}°C", weather.main.temp_min, weather.main.temp_max);
+    println!("Feels like: {}°C", weather.main.feels_like);
+    println!("Humidity: {}%", weather.main.humidity);
+    println!("Wind speed: {} m/s", weather.wind.speed);
+    println!("Cloud coverage: {}%", weather.clouds.all);
+    if let Some(rain_data) = &weather.rain {
+        println!("Rain in last hour: {}mm", rain_data.one_hour.unwrap_or(0.0));
+    } else {
+        println!("Rain: None");
+    }
 }
